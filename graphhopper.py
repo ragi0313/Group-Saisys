@@ -359,15 +359,64 @@ def build_report_html(
     if theme == "dark":
         body_class = "dark"
         dark_css = """
-        :root { --bg: #0b0f12; --card: #0f1720; --text: #e6eef6; --muted:#a9b7c6; --accent:#66d49f; --pill:#12221a; }
-        body.dark header { background:#083; color:#001; }
-        body.dark { background:var(--bg); color:var(--text); }
-        body.dark .card { background:var(--card); color:var(--text); box-shadow: 0 6px 18px rgba(0,0,0,0.6); }
-        body.dark table th { background: rgba(255,255,255,0.03); }
-        body.dark .pill { background: rgba(255,255,255,0.03); border-color: rgba(255,255,255,0.06); color:var(--text); }
+        :root { 
+            --bg: #121212; 
+            --card: #1e1e1e; 
+            --text: #e4e4e4; 
+            --muted: #a0a0a0; 
+            --accent: #4db380; 
+            --pill: #1a2b22; 
+            --header: #2c6e49;
+            --border: #2d2d2d;
+            --table-border: #333;
+            --table-header: #252525;
+        }
+        body.dark header { 
+            background: var(--header); 
+            color: #eee; 
+            box-shadow: 0 1px 10px rgba(0,0,0,0.4);
+        }
+        body.dark { 
+            background: var(--bg); 
+            color: var(--text); 
+        }
+        body.dark .card { 
+            background: var(--card); 
+            color: var(--text); 
+            box-shadow: 0 6px 18px rgba(0,0,0,0.4); 
+            border: 1px solid var(--border);
+        }
+        body.dark table th { 
+            background: var(--table-header); 
+            border-bottom: 1px solid var(--border);
+        }
+        body.dark table td {
+            border-bottom: 1px solid var(--table-border);
+        }
+        body.dark .pill { 
+            background: var(--pill); 
+            border-color: #2d3f35; 
+            color: #a4d5c1; 
+        }
+        body.dark a {
+            color: #68c3fd;
+        }
+        body.dark .dark-mode-toggle {
+            background: rgba(255,255,255,0.2);
+        }
+        body.dark .dark-mode-toggle:hover {
+            background: rgba(255,255,255,0.25);
+        }
         """
     else:
-        dark_css = ""
+        dark_css = """
+        .dark-mode-toggle {
+            background: rgba(0,0,0,0.1);
+        }
+        .dark-mode-toggle:hover {
+            background: rgba(0,0,0,0.15);
+        }
+        """
 
     html = f"""<!doctype html>
 <html lang='en'>
@@ -380,7 +429,11 @@ def build_report_html(
 <style>
 {dark_css}
 body {{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:#fafafa;margin:0;padding:0}}
-header {{background:#0b6;color:white;padding:16px 24px;display:flex;gap:16px;align-items:center}}
+header {{background:#0b6;color:white;padding:16px 24px;display:flex;align-items:center;justify-content:space-between}}
+.header-left {{display:flex;gap:16px;align-items:center}}
+.dark-mode-toggle {{padding:8px 14px;border-radius:8px;cursor:pointer;user-select:none;display:flex;align-items:center;gap:8px;font-weight:500;transition:all 0.2s ease}}
+.dark-mode-toggle:hover {{background:rgba(0,0,0,0.15)}}
+.dark-mode-icon {{width:20px;height:20px;display:flex;align-items:center;justify-content:center}}
 .wrap {{padding:16px 24px}}
 .grid {{display:grid;grid-template-columns:2fr 1fr;gap:16px}}
 .card {{background:white;border-radius:12px;padding:12px;box-shadow:0 2px 8px rgba(0,0,0,0.1)}}
@@ -396,9 +449,28 @@ th {{background:#f6f6f6}}
 </head>
 <body class="{body_class}">
 <header>
-<div class="vehicle-chip" style="color:inherit">
-<div style="display:flex;align-items:center">{veh_svg}</div>
-<div class="header-title"><div style="font-weight:700">Vehicle: {vehicle}</div><div style="font-size:13px;color:rgba(255,255,255,0.9)">{origin_label} → {dest_label}</div></div>
+<div class="header-left">
+  <div class="vehicle-chip" style="color:inherit">
+    <div style="display:flex;align-items:center">{veh_svg}</div>
+    <div class="header-title"><div style="font-weight:700">Vehicle: {vehicle}</div><div style="font-size:13px;color:rgba(255,255,255,0.9)">{origin_label} → {dest_label}</div></div>
+  </div>
+</div>
+<div class="dark-mode-toggle" onclick="toggleDarkMode()">
+  <div class="dark-mode-icon">
+    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path id="moon-icon" d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" style="display:{'none' if theme == 'dark' else 'block'}"></path>
+      <circle id="sun-circle" cx="12" cy="12" r="5" style="display:{'block' if theme == 'dark' else 'none'}"></circle>
+      <line id="sun-line-1" x1="12" y1="1" x2="12" y2="3" style="display:{'block' if theme == 'dark' else 'none'}"></line>
+      <line id="sun-line-2" x1="12" y1="21" x2="12" y2="23" style="display:{'block' if theme == 'dark' else 'none'}"></line>
+      <line id="sun-line-3" x1="4.22" y1="4.22" x2="5.64" y2="5.64" style="display:{'block' if theme == 'dark' else 'none'}"></line>
+      <line id="sun-line-4" x1="18.36" y1="18.36" x2="19.78" y2="19.78" style="display:{'block' if theme == 'dark' else 'none'}"></line>
+      <line id="sun-line-5" x1="1" y1="12" x2="3" y2="12" style="display:{'block' if theme == 'dark' else 'none'}"></line>
+      <line id="sun-line-6" x1="21" y1="12" x2="23" y2="12" style="display:{'block' if theme == 'dark' else 'none'}"></line>
+      <line id="sun-line-7" x1="4.22" y1="19.78" x2="5.64" y2="18.36" style="display:{'block' if theme == 'dark' else 'none'}"></line>
+      <line id="sun-line-8" x1="18.36" y1="5.64" x2="19.78" y2="4.22" style="display:{'block' if theme == 'dark' else 'none'}"></line>
+    </svg>
+  </div>
+  <span id="theme-text">{"Light" if theme == 'dark' else "Dark"} Mode</span>
 </div>
 </header>
 <div class='wrap'>
@@ -419,28 +491,135 @@ th {{background:#f6f6f6}}
 <table><thead><tr><th style='width:48px'></th><th>Instruction</th><th style='width:110px'>Distance</th></tr></thead>
 <tbody>{rows}</tbody></table></div></div>
 <script>
-const latlon = {json.dumps(latlon)};
-const map = L.map('map').setView(latlon.length ? latlon[Math.floor(latlon.length/2)] : [0,0], latlon.length ? 12 : 2);
-L.tileLayer('https://{{s}}.tile.openstreetmap.org/{{z}}/{{x}}/{{y}}.png', {{
-  maxZoom:19, attribution:'&copy; OpenStreetMap contributors'
-}}).addTo(map);
-const line = L.polyline(latlon, {{color:'#0078ff', weight:5}}).addTo(map);
-if (latlon.length) {{
-  const startIcon = L.icon({{
-    iconUrl: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzIiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCAzMiA0MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cGF0aCBkPSJNMTYgMEM3LjIgMCAwIDYuOCAwIDE2YzAgOCAxNiAyNCAxNiAyNHMxNi0xNiAxNi0yNGMwLTkuMi03LjItMTYtMTYtMTZ6IiBmaWxsPSIjMjJDNTVFIi8+PGNpcmNsZSBjeD0iMTYiIGN5PSIxNiIgcj0iNiIgZmlsbD0id2hpdGUiLz48L3N2Zz4=',
-    iconSize: [32, 40],
-    iconAnchor: [16, 40],
-    popupAnchor: [0, -40]
-  }});
-  const endIcon = L.icon({{
-    iconUrl: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzIiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCAzMiA0MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cGF0aCBkPSJNMTYgMEM3LjIgMCAwIDYuOCAwIDE2YzAgOCAxNiAyNCAxNiAyNHMxNi0xNiAxNi0yNGMwLTkuMi03LjItMTYtMTYtMTZ6IiBmaWxsPSIjRUY0NDQ0Ii8+PGNpcmNsZSBjeD0iMTYiIGN5PSIxNiIgcj0iNiIgZmlsbD0id2hpdGUiLz48L3N2Zz4=',
-    iconSize: [32, 40],
-    iconAnchor: [16, 40],
-    popupAnchor: [0, -40]
-  }});
-  L.marker(latlon[0], {{icon: startIcon}}).addTo(map).bindTooltip("Start");
-  L.marker(latlon[latlon.length-1], {{icon: endIcon}}).addTo(map).bindTooltip("End");
-  map.fitBounds(line.getBounds(), {{padding:[20,20]}});
+try {{
+  console.log('Initializing map...');
+  const latlon = {json.dumps(latlon)};
+  console.log('Coordinates loaded:', latlon.length > 0 ? 'Yes' : 'No', latlon.length);
+  const isDarkMode = document.body.classList.contains('dark');
+  
+  // Check if the map container exists
+  if (!document.getElementById('map')) {{
+    console.error('Map container not found');
+    throw new Error('Map container not found');
+  }}
+  
+  const map = L.map('map').setView(latlon.length ? latlon[Math.floor(latlon.length/2)] : [0,0], latlon.length ? 12 : 2);
+  console.log('Map initialized');
+  
+  // Choose map style based on theme
+  const mapStyle = isDarkMode 
+    ? 'https://cartodb-basemaps-{{s}}.global.ssl.fastly.net/dark_all/{{z}}/{{x}}/{{y}}.png'
+    : 'https://{{s}}.tile.openstreetmap.org/{{z}}/{{x}}/{{y}}.png';
+  
+  let tileLayer;
+  
+  try {{
+    // Try the first map style
+    console.log('Loading tiles from:', mapStyle);
+    tileLayer = L.tileLayer(mapStyle, {{
+      maxZoom: 19, 
+      attribution: isDarkMode 
+        ? '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="http://cartodb.com/attributions">CartoDB</a>'
+        : '&copy; OpenStreetMap contributors'
+    }}).addTo(map);
+    
+    // Add an error handler
+    tileLayer.on('tileerror', function(event) {{
+      console.error('Tile error:', event);
+      // If we get tile errors, try a different source
+      if (!window.triedAlternativeSource) {{
+        window.triedAlternativeSource = true;
+        map.removeLayer(tileLayer);
+        tileLayer = L.tileLayer('https://tile.openstreetmap.org/{{z}}/{{x}}/{{y}}.png', {{
+          maxZoom: 19,
+          attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        }}).addTo(map);
+      }}
+    }});
+  }} catch (e) {{
+    console.error('Error adding tile layer:', e);
+    // Fallback to OpenStreetMap directly
+    tileLayer = L.tileLayer('https://tile.openstreetmap.org/{{z}}/{{x}}/{{y}}.png', {{
+      maxZoom: 19,
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+    }}).addTo(map);
+  }}
+  
+  // Choose line color based on theme
+  const lineColor = isDarkMode ? '#4db6ff' : '#0078ff';
+  let line = L.polyline(latlon, {{color: lineColor, weight: 5, opacity: 0.8}}).addTo(map);
+  // Define markers at global scope
+  let startMarker, endMarker;
+  
+  if (latlon.length) {{
+    const startIcon = L.icon({{
+      iconUrl: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzIiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCAzMiA0MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cGF0aCBkPSJNMTYgMEM3LjIgMCAwIDYuOCAwIDE2YzAgOCAxNiAyNCAxNiAyNHMxNi0xNiAxNi0yNGMwLTkuMi03LjItMTYtMTYtMTZ6IiBmaWxsPSIjMjJDNTVFIi8+PGNpcmNsZSBjeD0iMTYiIGN5PSIxNiIgcj0iNiIgZmlsbD0id2hpdGUiLz48L3N2Zz4=',
+      iconSize: [32, 40],
+      iconAnchor: [16, 40],
+      popupAnchor: [0, -40]
+    }});
+    const endIcon = L.icon({{
+      iconUrl: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzIiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCAzMiA0MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cGF0aCBkPSJNMTYgMEM3LjIgMCAwIDYuOCAwIDE2YzAgOCAxNiAyNCAxNiAyNHMxNi0xNiAxNi0yNGMwLTkuMi03LjItMTYtMTYtMTZ6IiBmaWxsPSIjRUY0NDQ0Ii8+PGNpcmNsZSBjeD0iMTYiIGN5PSIxNiIgcj0iNiIgZmlsbD0id2hpdGUiLz48L3N2Zz4=',
+      iconSize: [32, 40],
+      iconAnchor: [16, 40],
+      popupAnchor: [0, -40]
+    }});
+    startMarker = L.marker(latlon[0], {{icon: startIcon}}).addTo(map).bindTooltip("Start");
+    endMarker = L.marker(latlon[latlon.length-1], {{icon: endIcon}}).addTo(map).bindTooltip("End");
+    map.fitBounds(line.getBounds(), {{padding:[20,20]}});
+  }}
+  
+  // Add dark mode toggle functionality
+  function toggleDarkMode() {{
+    document.body.classList.toggle('dark');
+    const isDarkNow = document.body.classList.contains('dark');
+    
+    // Update theme text
+    document.getElementById('theme-text').textContent = isDarkNow ? 'Light Mode' : 'Dark Mode';
+    
+    // Toggle icon visibility
+    document.getElementById('moon-icon').style.display = isDarkNow ? 'none' : 'block';
+    const sunElements = ['sun-circle', 'sun-line-1', 'sun-line-2', 'sun-line-3', 'sun-line-4', 'sun-line-5', 'sun-line-6', 'sun-line-7', 'sun-line-8'];
+    sunElements.forEach(id => {{
+      document.getElementById(id).style.display = isDarkNow ? 'block' : 'none';
+    }});
+    
+    try {{
+      // Update map style
+      if (tileLayer) {{
+        map.removeLayer(tileLayer);
+      }}
+      const newMapStyle = isDarkNow 
+        ? 'https://cartodb-basemaps-{{s}}.global.ssl.fastly.net/dark_all/{{z}}/{{x}}/{{y}}.png'
+        : 'https://{{s}}.tile.openstreetmap.org/{{z}}/{{x}}/{{y}}.png';
+      tileLayer = L.tileLayer(newMapStyle, {{
+        maxZoom: 19, 
+        attribution: isDarkNow 
+          ? '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="http://cartodb.com/attributions">CartoDB</a>'
+          : '&copy; OpenStreetMap contributors'
+      }}).addTo(map);
+      
+      // Update polyline color
+      if (line && latlon.length > 0) {{
+        map.removeLayer(line);
+        const newLineColor = isDarkNow ? '#4db6ff' : '#0078ff';
+        line = L.polyline(latlon, {{color: newLineColor, weight: 5, opacity: 0.8}}).addTo(map);
+        
+        // Make sure markers stay on top
+        if (startMarker) startMarker.addTo(map);
+        if (endMarker) endMarker.addTo(map);
+      }}
+    }} catch (e) {{
+      console.error("Error updating map style:", e);
+    }}
+  }}
+}} catch (error) {{
+  console.error("Error initializing map:", error);
+  document.getElementById('map').innerHTML = '<div style="padding: 20px; text-align: center;">' + 
+    '<p>Error loading map: ' + error.message + '</p>' +
+    '<p>Please check your internet connection and try again.</p>' +
+    '<button onclick="location.reload()">Reload Page</button>' +
+    '</div>';
 }}
 </script>
 </body></html>
@@ -486,7 +665,7 @@ def main():
             "fuel_eff_l100": DEFAULT_FUEL_EFF_L100,
             "fuel_price_per_l": DEFAULT_GASOLINE_PHP_PER_L,
             "fuel_price_overridden": None,
-            "dark_mode": False,
+            "dark_mode": False,  # Default to light mode, user can toggle in the report
         }
         # open loading modal and start thread
         loading_modal, pb = open_loading_modal(root, title="Generating report — please wait")
