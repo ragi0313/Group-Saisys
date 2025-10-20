@@ -1,110 +1,152 @@
-# Group-Saisys
 
-GraphHopper Routing Application with Visual Reports
 
-## Overview
+# **Group-Saisys-RouteXplorer**
 
-An enhanced GUI application for route planning using the GraphHopper API. Generates beautiful interactive HTML reports with maps, turn-by-turn directions, fuel cost calculations, and calorie estimations.
+Your path, redefined.
 
-## Features
+## **Overview**
 
-- **Interactive GUI** - Easy-to-use Tkinter interface
-- **Visual Route Reports** - Interactive HTML reports with Leaflet maps
-- **Multiple Vehicle Types** - Support for car, bike, foot, motorcycle, truck, ebike, scooter
-- **Fuel Cost Calculations** - Automatic fuel consumption and cost estimation with Philippine market prices
-- **Calorie Tracking** - Automatic calorie estimation for active transportation (walking, cycling)
-- **E-bike Energy** - Battery consumption estimates for electric bikes
-- **Color-coded Directions** - Turn-by-turn instructions with custom icons
-- **Dark Mode Support** - Built-in theme options
-- **Loading Progress** - Threaded route generation with progress indicator
+**RouteXplorer** is an enhanced routing and visualization web application built on the **GraphHopper API**.
+It provides interactive route maps, vehicle-specific KPIs, and turn-by-turn navigation — ideal for transportation and logistics demonstrations in the Philippine context.
 
-## Requirements
+This project extends a previous CLI-based routing tool into a fully interactive browser interface with real-time visualization, fuel and energy estimations, and dynamic travel metrics.
 
-- Python 3.7+
-- GraphHopper API key (free tier available at https://www.graphhopper.com/)
+---
 
-## Installation
+## **Features**
+
+* **Interactive Web Interface** – Clean and intuitive HTML/CSS/JS front end with live route generation
+* **Visual Route Mapping** – Leaflet map display with start and destination markers (pin and green flag)
+* **Multiple Vehicle Types** – Supports car, motorcycle, bike, foot, and e-bike routing modes
+* **Dynamic KPI Dashboard** – Automatic updates for distance, duration, and vehicle-specific metrics
+
+  * Car/Motorcycle → Fuel (L) and Cost (₱)
+  * Bike → Calories and Average Speed
+  * Walking → Steps and Calories
+  * E-Bike → Energy (Wh/kWh) and Charge Cost
+* **Turn-By-Turn Directions** – Icon-based instructions for left, right, u-turn, roundabout, and arrival steps
+* **Highlighted Destination** – Final “Arrive at destination” step visually emphasized
+* **Dark/Light Mode Support** – Built-in theme toggle
+* **Loading Progress** – Animated loader while generating routes
+
+---
+
+## **Requirements**
+
+* Modern browser (Edge, Chrome, or Firefox)
+* Internet connection for GraphHopper API access
+* GraphHopper API key (free tier available at [https://www.graphhopper.com](https://www.graphhopper.com))
+
+---
+
+## **Installation**
 
 1. Clone this repository:
-```bash
-git clone <repository-url>
-cd Group-Saisys
-```
 
-2. Install dependencies:
-```bash
-pip install -r requirements.txt
-```
+   ```bash
+   git clone <repository-url>
+   cd Group-Saisys
+   ```
+
+2. Install dependencies (if using the Python helper tools):
+
+   ```bash
+   pip install -r requirements.txt
+   ```
 
 3. Set up your API key:
-```bash
-# On Windows
-set GRAPHHOPPER_API_KEY=your_api_key_here
 
-# On Linux/Mac
-export GRAPHHOPPER_API_KEY=your_api_key_here
+   ```bash
+   # On Windows
+   set GRAPHHOPPER_API_KEY=your_api_key_here
+
+   # On Linux/Mac
+   export GRAPHHOPPER_API_KEY=your_api_key_here
+   ```
+
+   Alternatively, create a `.env` file (see `.env.example`).
+
+---
+
+## **Usage**
+
+Run the main web file:
+
+```bash
+start index.html
 ```
 
-Alternatively, create a `.env` file (see `.env.example`)
+or open it directly in your browser.
 
-## Usage
-
-Run the application:
-```bash
-python graphhopper.py
-```
-
-1. Enter your **Origin** location (e.g., "Manila, Philippines")
-2. Enter your **Destination** (e.g., "Quezon City, Philippines")
-3. Select a **Vehicle type** from the dropdown
+1. Enter your **Origin** (e.g., “Batangas City Hall”)
+2. Enter your **Destination** (e.g., “SM City Batangas”)
+3. Select a **Vehicle Type** (Car, Motorcycle, Bike, Foot, or E-Bike)
 4. Click **Generate Report**
 
-The application will generate an interactive HTML report (`report.html`) and open it automatically in your default browser.
+The application will:
 
-## Default Values
+* Display a suggested route on the map
+* Show a **📍 pin** for origin and **green flag** for destination
+* Present detailed KPIs and turn-by-turn directions
+
+---
+
+## **Default Values**
 
 The application uses Philippine market defaults (as of October 2025):
 
-- **Gasoline**: ₱57.20/L
-- **Diesel**: ₱55.45/L
-- **Fuel Efficiency**: 7.0 L/100km
-- **Body Weight** (for calorie calculation): 70kg
+* **Gasoline**: ₱57.20 / L
+* **Electricity**: ₱12.00 / kWh
+* **Fuel Efficiency**: 7.0 L / 100 km
+* **Body Weight**: 70 kg
+* **Steps per km**: 1,250
 
-## Vehicle Types
+---
 
-- **car** - Standard automobile (gasoline)
-- **truck** - Heavy vehicle (diesel)
-- **motorcycle** - Two-wheeler (gasoline)
-- **bike** - Bicycle (includes calorie estimation)
-- **foot** - Walking (includes calorie estimation)
-- **ebike** - Electric bicycle (includes energy consumption)
-- **scooter** - Motor scooter (gasoline)
+## **Report Features**
 
-## Report Features
+Generated route reports include:
 
-Generated reports include:
+* Interactive Leaflet map visualization
+* Start and end location markers
+* Distance (km / mi) and estimated duration
+* Fuel consumption and cost (motorized modes)
+* Calorie or energy estimation for active transport
+* Icon-coded turn instructions
+* Highlighted destination step
 
-- Interactive map with route visualization
-- Start and end location markers
-- Distance (miles and kilometers)
-- Estimated duration
-- Fuel consumption and cost (for motorized vehicles)
-- Calorie expenditure (for active transportation)
-- E-bike battery consumption (for ebike mode)
-- Detailed turn-by-turn directions with color-coded icons
+---
 
-## API Key
+## **Future Enhancements**
 
-Get your free GraphHopper API key at: https://www.graphhopper.com/
+* Multi-route comparison (shortest vs scenic)
+* Real-time traffic and weather overlays
+* Export route summaries (PDF or CSV)
+* Optional user profiles with saved routes
 
-**Important**: Never commit your API key to version control. Use environment variables or a `.env` file.
+---
 
-## License
+## **API Key**
 
-This project is for educational purposes.
+Get your free GraphHopper API key at:
+[https://www.graphhopper.com](https://www.graphhopper.com)
 
-## Credits
+**Important:** Never commit your API key to version control.
+Use environment variables or a `.env` file.
 
-- GraphHopper Routing API
-- Leaflet for interactive maps
-- OpenStreetMap for map data
+---
+
+## **License**
+
+This project is for educational and research purposes.
+
+---
+
+## **Credits**
+
+* **GraphHopper Routing API** – Routing engine
+* **Leaflet** – Interactive mapping
+* **OpenStreetMap** – Base map data
+* **Group 3 Networking – SAISys Project Team**
+
+---
