@@ -99,6 +99,7 @@
         </div>
       </div>
 
+      <!-- KPI 3 (dynamic: Fuel / Steps / Calories) -->
       <div class="kpi-card">
         <div class="kpi-icon kpi-green">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -108,12 +109,13 @@
           </svg>
         </div>
         <div class="kpi-body">
-          <div class="kpi-label">Fuel</div>
-          <div class="kpi-value" id="kpi-fuel">—</div>
-          <div class="kpi-sub" id="kpi-fuel-sub">eff 7.0 L/100km</div>
+          <div class="kpi-label" id="kpi-a-label">Fuel</div>
+          <div class="kpi-value" id="kpi-a">—</div>
+          <div class="kpi-sub" id="kpi-a-sub">eff 7.0 L/100km</div>
         </div>
       </div>
 
+      <!-- KPI 4 (dynamic: Cost / Calories / Avg Speed) -->
       <div class="kpi-card">
         <div class="kpi-icon kpi-orange">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -122,9 +124,9 @@
           </svg>
         </div>
         <div class="kpi-body">
-          <div class="kpi-label">Cost</div>
-          <div class="kpi-value" id="kpi-cost">—</div>
-          <div class="kpi-sub" id="kpi-cost-sub">₱57.20/L</div>
+          <div class="kpi-label" id="kpi-b-label">Cost</div>
+          <div class="kpi-value" id="kpi-b">—</div>
+          <div class="kpi-sub" id="kpi-b-sub">₱57.20/L</div>
         </div>
       </div>
     </div>
@@ -144,14 +146,23 @@
   </div>
 
   <script>
+    // ---------- CONFIGURABLE ASSUMPTIONS ----------
     const DEFAULT_KEY = "05ddb74c-90fe-4dad-9236-e37bb1fc2003";
+    const USER_WEIGHT_KG = 70;       // assumed user weight for calorie estimates
+    const STEPS_PER_KM = 1250;       // average steps per km
+    const MET_WALK = 3.3;            // walking ~3 mph
+    const MET_BIKE = 7.5;            // moderate cycling
+    // Fuel assumptions for motor vehicles:
+    const DEFAULT_EFF_L_PER_100KM = 7.0; // car fuel efficiency
+    const FUEL_PRICE = 57.20;            // ₱/L
 
+    // ---------- UI BOOT ----------
     window.addEventListener("load", () => {
       const loader = document.getElementById("loading-screen");
       setTimeout(() => {
         loader.classList.add("fade-out");
         setTimeout(() => loader.style.display = "none", 800);
-      }, 3000);
+      }, 1500);
     });
 
     const modeToggle = document.getElementById("mode-toggle");
@@ -159,12 +170,19 @@
       document.body.classList.toggle("light-mode", modeToggle.checked)
     );
 
+    // ---------- MAP ----------
     const $ = id => document.getElementById(id);
     const map = L.map('map', {center:[13.759,121.058], zoom:12});
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {maxZoom:19}).addTo(map);
 
     let routeLine = null;
+    function drawRoute(coords){
+      if(routeLine) map.removeLayer(routeLine);
+      routeLine = L.polyline(coords, {color:'#00ff90', weight:5}).addTo(map);
+      map.fitBounds(routeLine.getBounds());
+    }
 
+    // ---------- HELPERS ----------
     async function geocode(q){
       const u = new URL('https://graphhopper.com/api/1/geocode');
       u.searchParams.set('q', q);
@@ -173,13 +191,7 @@
       const r = await fetch(u);
       const j = await r.json();
       if(!j.hits.length) throw new Error('No result for ' + q);
-      return j.hits[0].point;
-    }
-
-    function drawRoute(coords){
-      if(routeLine) map.removeLayer(routeLine);
-      routeLine = L.polyline(coords, {color:'#00ff90', weight:5}).addTo(map);
-      map.fitBounds(routeLine.getBounds());
+      return j.hits[0].point; // {lat, lng}
     }
 
     function prettyTime(ms){
@@ -191,7 +203,27 @@
     }
     function kmToMiles(km){ return km / 1.60934; }
     const fmtPeso = n => `₱${n.toFixed(2)}`;
+    const fmt1 = n => n.toFixed(1);
+    const fmt2 = n => n.toFixed(2);
 
+    // Calories using MET formula: kcal = MET * 3.5 * weight(kg) / 200 * minutes
+    function estimateCalories(MET, minutes, weightKg = USER_WEIGHT_KG){
+      return MET * 3.5 * weightKg / 200 * minutes;
+    }
+
+    // ---------- KPI SETTER ----------
+    function setKPI(labelsAndValues){
+      const { aLabel, aValue, aSub, bLabel, bValue, bSub } = labelsAndValues;
+      $('kpi-a-label').textContent = aLabel;
+      $('kpi-a').textContent = aValue;
+      $('kpi-a-sub').textContent = aSub;
+
+      $('kpi-b-label').textContent = bLabel;
+      $('kpi-b').textContent = bValue;
+      $('kpi-b-sub').textContent = bSub;
+    }
+
+    // ---------- MAIN ----------
     $('generate').addEventListener('click', async ()=>{
       try{
         $('status').innerText = 'Working...';
@@ -212,8 +244,8 @@
         const params = new URLSearchParams({
           point: `${g1.lat},${g1.lng}`,
           vehicle,
-          'points_encoded':'false',
-          'instructions':'true',
+          points_encoded: 'false',
+          instructions: 'true',
           key: DEFAULT_KEY
         });
         params.append('point', `${g2.lat},${g2.lng}`);
@@ -228,26 +260,61 @@
 
         const km = path.distance / 1000;
         const miles = kmToMiles(km);
-        const dur = path.time;
+        const durMs = path.time;
+        const mins = Math.round(durMs/60000);
+        const hours = durMs / 3600000;
+        const avgSpeedKmh = hours > 0 ? km / hours : 0;
 
-        const eff = 7.0;
-        const fuel = (km * eff) / 100;
-        const fuelPrice = 57.20;
-        const fuelCost = fuel * fuelPrice;
+        // Always set distance & duration
+        $('kpi-distance').textContent = `${fmt1(km)} km`;
+        $('kpi-distance-sub').textContent = `${fmt1(miles)} mi`;
 
-        $('kpi-distance').textContent = `${km.toFixed(1)} km`;
-        $('kpi-distance-sub').textContent = `${miles.toFixed(1)} mi`;
-
-        $('kpi-duration').textContent = prettyTime(dur);
-        const mins = Math.round(dur/60000);
+        $('kpi-duration').textContent = prettyTime(durMs);
         $('kpi-duration-sub').textContent = `${mins} min`;
 
-        $('kpi-fuel').textContent = `${fuel.toFixed(2)} L`;
-        $('kpi-fuel-sub').textContent = `eff ${eff.toFixed(1)} L/100km`;
+        // Switch KPI 3 & 4 based on vehicle
+        if (vehicle === 'foot') {
+          // Walking → Steps & Calories
+          const steps = Math.round(km * STEPS_PER_KM);
+          const kcal = estimateCalories(MET_WALK, mins);
 
-        $('kpi-cost').textContent = fmtPeso(fuelCost);
-        $('kpi-cost-sub').textContent = `@ ${fmtPeso(fuelPrice)}/L`;
+          setKPI({
+            aLabel: 'Steps',
+            aValue: steps.toLocaleString(),
+            aSub: `~${STEPS_PER_KM} steps/km`,
+            bLabel: 'Calories',
+            bValue: `${fmt0(kcal)} kcal`,
+            bSub: `MET ${MET_WALK}, ${USER_WEIGHT_KG} kg`
+          });
+        } else if (vehicle === 'bike') {
+          // Biking → Calories & Avg Speed
+          const kcal = estimateCalories(MET_BIKE, mins);
 
+          setKPI({
+            aLabel: 'Calories',
+            aValue: `${fmt0(kcal)} kcal`,
+            aSub: `MET ${MET_BIKE}, ${USER_WEIGHT_KG} kg`,
+            bLabel: 'Avg Speed',
+            bValue: `${fmt1(avgSpeedKmh)} km/h`,
+            bSub: `${fmt1(km)} km in ${mins} min`
+          });
+        } else {
+          // Motorized (car/motorcycle/ebike) → Fuel & Cost
+          const eff = DEFAULT_EFF_L_PER_100KM;
+          const fuelL = (km * eff) / 100;
+          const fuelCost = fuelL * FUEL_PRICE;
+
+          setKPI({
+            aLabel: 'Fuel',
+            aValue: `${fmt2(fuelL)} L`,
+            aSub: `eff ${eff.toFixed(1)} L/100km`,
+            bLabel: 'Cost',
+            bValue: fmtPeso(fuelCost),
+            bSub: `@ ${fmtPeso(FUEL_PRICE)}/L`
+          });
+        }
+
+        // Instructions table
         const list = path.instructions.map(inst => `
           <tr><td>${inst.text}</td><td>${(inst.distance/1000).toFixed(2)} km</td></tr>
         `).join('');
@@ -258,6 +325,9 @@
         console.error(e);
       }
     });
+
+    // tiny helpers used above
+    function fmt0(n){ return Math.round(n).toString(); }
   </script>
 </body>
 </html>
