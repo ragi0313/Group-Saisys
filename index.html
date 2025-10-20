@@ -41,7 +41,6 @@
 
   <!-- MAIN PANEL -->
   <div class="panel">
-    <!-- API key field removed -->
     <label>Origin</label>
     <input id="origin" type="text" placeholder="e.g., Batangas City Hall" />
 
@@ -65,15 +64,72 @@
     <p id="status" class="status">Ready</p>
   </div>
 
-  <!-- MAP + RESULTS -->
+  <!-- MAP + KPI RESULTS -->
   <div class="map-container">
     <div id="map"></div>
 
-    <div class="summary" id="summary">
-      <h2>Summary</h2>
-      <p id="summary-text">No route yet.</p>
+    <!-- KPI CARDS -->
+    <div class="kpi-grid">
+      <div class="kpi-card">
+        <div class="kpi-icon kpi-blue">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M3 6h5l2 6 3-4h8" />
+            <circle cx="6" cy="6" r="2" fill="currentColor"></circle>
+            <circle cx="21" cy="8" r="2" fill="currentColor"></circle>
+          </svg>
+        </div>
+        <div class="kpi-body">
+          <div class="kpi-label">Distance</div>
+          <div class="kpi-value" id="kpi-distance">—</div>
+          <div class="kpi-sub" id="kpi-distance-sub">—</div>
+        </div>
+      </div>
+
+      <div class="kpi-card">
+        <div class="kpi-icon kpi-purple">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="9"></circle>
+            <path d="M12 7v6l4 2"></path>
+          </svg>
+        </div>
+        <div class="kpi-body">
+          <div class="kpi-label">Duration</div>
+          <div class="kpi-value" id="kpi-duration">—</div>
+          <div class="kpi-sub" id="kpi-duration-sub">—</div>
+        </div>
+      </div>
+
+      <div class="kpi-card">
+        <div class="kpi-icon kpi-green">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M3 7a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v12H3z"></path>
+            <path d="M16 7l3 3v5a3 3 0 0 1-3 3h-1"></path>
+            <circle cx="7" cy="11" r="1.5" fill="currentColor"></circle>
+          </svg>
+        </div>
+        <div class="kpi-body">
+          <div class="kpi-label">Fuel</div>
+          <div class="kpi-value" id="kpi-fuel">—</div>
+          <div class="kpi-sub" id="kpi-fuel-sub">eff 7.0 L/100km</div>
+        </div>
+      </div>
+
+      <div class="kpi-card">
+        <div class="kpi-icon kpi-orange">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M7 20V4h6a5 5 0 0 1 0 10H7"></path>
+            <path d="M7 10h10M7 14h10"></path>
+          </svg>
+        </div>
+        <div class="kpi-body">
+          <div class="kpi-label">Cost</div>
+          <div class="kpi-value" id="kpi-cost">—</div>
+          <div class="kpi-sub" id="kpi-cost-sub">₱57.20/L</div>
+        </div>
+      </div>
     </div>
 
+    <!-- INSTRUCTIONS -->
     <div class="instructions" id="instructions">
       <h2>Turn-by-Turn Instructions</h2>
       <table>
@@ -88,10 +144,8 @@
   </div>
 
   <script>
-    /* === CONFIG === */
-    const DEFAULT_KEY = "05ddb74c-90fe-4dad-9236-e37bb1fc2003"; // fallback key
+    const DEFAULT_KEY = "05ddb74c-90fe-4dad-9236-e37bb1fc2003";
 
-    /* === LOADING SCREEN === */
     window.addEventListener("load", () => {
       const loader = document.getElementById("loading-screen");
       setTimeout(() => {
@@ -100,13 +154,11 @@
       }, 3000);
     });
 
-    /* === DARK/LIGHT MODE === */
     const modeToggle = document.getElementById("mode-toggle");
     modeToggle.addEventListener("change", () =>
       document.body.classList.toggle("light-mode", modeToggle.checked)
     );
 
-    /* === MAP === */
     const $ = id => document.getElementById(id);
     const map = L.map('map', {center:[13.759,121.058], zoom:12});
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {maxZoom:19}).addTo(map);
@@ -138,16 +190,21 @@
       return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`;
     }
     function kmToMiles(km){ return km / 1.60934; }
+    const fmtPeso = n => `₱${n.toFixed(2)}`;
 
     $('generate').addEventListener('click', async ()=>{
       try{
         $('status').innerText = 'Working...';
-        $('summary-text').innerText = 'Fetching route...';
         $('instruction-list').innerHTML = '<tr><td colspan="2">Loading...</td></tr>';
 
-        const from = $('origin').value;
-        const to = $('destination').value;
+        const from = $('origin').value.trim();
+        const to = $('destination').value.trim();
         const vehicle = $('vehicle').value;
+
+        if(!from || !to){
+          $('status').innerText = 'Please enter both Origin and Destination.';
+          return;
+        }
 
         const g1 = await geocode(from);
         const g2 = await geocode(to);
@@ -163,6 +220,8 @@
 
         const res = await fetch('https://graphhopper.com/api/1/route?' + params);
         const data = await res.json();
+        if(!data.paths || !data.paths.length) throw new Error(data.message || 'No route found');
+
         const path = data.paths[0];
         const coords = path.points.coordinates.map(c=>[c[1],c[0]]);
         drawRoute(coords);
@@ -170,15 +229,24 @@
         const km = path.distance / 1000;
         const miles = kmToMiles(km);
         const dur = path.time;
-        const fuel = (km * 7) / 100;
-        const fuelCost = fuel * 57.2;
 
-        $('summary-text').innerHTML = `
-          Distance: ${miles.toFixed(1)} miles / ${km.toFixed(1)} km<br>
-          Duration: ${prettyTime(dur)}<br>
-          Fuel: ${fuel.toFixed(2)} L (eff 7.0 L/100km)<br>
-          Cost: ₱${fuelCost.toFixed(2)} (₱57.20/L)
-        `;
+        const eff = 7.0;
+        const fuel = (km * eff) / 100;
+        const fuelPrice = 57.20;
+        const fuelCost = fuel * fuelPrice;
+
+        $('kpi-distance').textContent = `${km.toFixed(1)} km`;
+        $('kpi-distance-sub').textContent = `${miles.toFixed(1)} mi`;
+
+        $('kpi-duration').textContent = prettyTime(dur);
+        const mins = Math.round(dur/60000);
+        $('kpi-duration-sub').textContent = `${mins} min`;
+
+        $('kpi-fuel').textContent = `${fuel.toFixed(2)} L`;
+        $('kpi-fuel-sub').textContent = `eff ${eff.toFixed(1)} L/100km`;
+
+        $('kpi-cost').textContent = fmtPeso(fuelCost);
+        $('kpi-cost-sub').textContent = `@ ${fmtPeso(fuelPrice)}/L`;
 
         const list = path.instructions.map(inst => `
           <tr><td>${inst.text}</td><td>${(inst.distance/1000).toFixed(2)} km</td></tr>
