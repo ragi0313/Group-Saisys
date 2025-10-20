@@ -1,0 +1,195 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>SAISys RouteXplorer</title>
+
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+</head>
+<body>
+
+  <!-- LOADING SCREEN -->
+  <div id="loading-screen">
+    <div class="loader-content">
+      <h1 class="loader-title">GROUP 3 NETWORKING</h1>
+      <div class="loader-spinner"></div>
+      <p class="loader-text">Loading, please wait...</p>
+    </div>
+  </div>
+
+  <!-- NAVIGATION BAR -->
+  <nav class="navbar">
+    <div class="nav-left">
+      <h1>SAISys RouteXplorer</h1>
+      <p>Your path, redefined.</p>
+    </div>
+
+    <div class="theme-toggle">
+      <input type="checkbox" id="mode-toggle">
+      <label for="mode-toggle" class="toggle-label">
+        <div class="toggle-inner">
+          <span class="icon sun">☀️</span>
+          <span class="icon moon">🌙</span>
+        </div>
+        <div class="toggle-ball"></div>
+      </label>
+    </div>
+  </nav>
+
+  <!-- MAIN PANEL -->
+  <div class="panel">
+    <!-- API key field removed -->
+    <label>Origin</label>
+    <input id="origin" type="text" placeholder="e.g., Batangas City Hall" />
+
+    <label>Destination</label>
+    <input id="destination" type="text" placeholder="e.g., SM City Batangas" />
+
+    <div class="row">
+      <div>
+        <label>Vehicle</label>
+        <select id="vehicle">
+          <option value="car">Car</option>
+          <option value="motorcycle">Motorcycle</option>
+          <option value="bike">Bike</option>
+          <option value="foot">Walking</option>
+          <option value="ebike">E-Bike</option>
+        </select>
+      </div>
+    </div>
+
+    <button id="generate" class="btn">Generate Report</button>
+    <p id="status" class="status">Ready</p>
+  </div>
+
+  <!-- MAP + RESULTS -->
+  <div class="map-container">
+    <div id="map"></div>
+
+    <div class="summary" id="summary">
+      <h2>Summary</h2>
+      <p id="summary-text">No route yet.</p>
+    </div>
+
+    <div class="instructions" id="instructions">
+      <h2>Turn-by-Turn Instructions</h2>
+      <table>
+        <thead>
+          <tr><th>Instruction</th><th>Distance</th></tr>
+        </thead>
+        <tbody id="instruction-list">
+          <tr><td colspan="2">No data yet.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <script>
+    /* === CONFIG === */
+    const DEFAULT_KEY = "05ddb74c-90fe-4dad-9236-e37bb1fc2003"; // fallback key
+
+    /* === LOADING SCREEN === */
+    window.addEventListener("load", () => {
+      const loader = document.getElementById("loading-screen");
+      setTimeout(() => {
+        loader.classList.add("fade-out");
+        setTimeout(() => loader.style.display = "none", 800);
+      }, 3000);
+    });
+
+    /* === DARK/LIGHT MODE === */
+    const modeToggle = document.getElementById("mode-toggle");
+    modeToggle.addEventListener("change", () =>
+      document.body.classList.toggle("light-mode", modeToggle.checked)
+    );
+
+    /* === MAP === */
+    const $ = id => document.getElementById(id);
+    const map = L.map('map', {center:[13.759,121.058], zoom:12});
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {maxZoom:19}).addTo(map);
+
+    let routeLine = null;
+
+    async function geocode(q){
+      const u = new URL('https://graphhopper.com/api/1/geocode');
+      u.searchParams.set('q', q);
+      u.searchParams.set('limit', 1);
+      u.searchParams.set('key', DEFAULT_KEY);
+      const r = await fetch(u);
+      const j = await r.json();
+      if(!j.hits.length) throw new Error('No result for ' + q);
+      return j.hits[0].point;
+    }
+
+    function drawRoute(coords){
+      if(routeLine) map.removeLayer(routeLine);
+      routeLine = L.polyline(coords, {color:'#00ff90', weight:5}).addTo(map);
+      map.fitBounds(routeLine.getBounds());
+    }
+
+    function prettyTime(ms){
+      const s = Math.round(ms/1000);
+      const h = Math.floor(s/3600);
+      const m = Math.floor((s%3600)/60);
+      const sec = s%60;
+      return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`;
+    }
+    function kmToMiles(km){ return km / 1.60934; }
+
+    $('generate').addEventListener('click', async ()=>{
+      try{
+        $('status').innerText = 'Working...';
+        $('summary-text').innerText = 'Fetching route...';
+        $('instruction-list').innerHTML = '<tr><td colspan="2">Loading...</td></tr>';
+
+        const from = $('origin').value;
+        const to = $('destination').value;
+        const vehicle = $('vehicle').value;
+
+        const g1 = await geocode(from);
+        const g2 = await geocode(to);
+
+        const params = new URLSearchParams({
+          point: `${g1.lat},${g1.lng}`,
+          vehicle,
+          'points_encoded':'false',
+          'instructions':'true',
+          key: DEFAULT_KEY
+        });
+        params.append('point', `${g2.lat},${g2.lng}`);
+
+        const res = await fetch('https://graphhopper.com/api/1/route?' + params);
+        const data = await res.json();
+        const path = data.paths[0];
+        const coords = path.points.coordinates.map(c=>[c[1],c[0]]);
+        drawRoute(coords);
+
+        const km = path.distance / 1000;
+        const miles = kmToMiles(km);
+        const dur = path.time;
+        const fuel = (km * 7) / 100;
+        const fuelCost = fuel * 57.2;
+
+        $('summary-text').innerHTML = `
+          Distance: ${miles.toFixed(1)} miles / ${km.toFixed(1)} km<br>
+          Duration: ${prettyTime(dur)}<br>
+          Fuel: ${fuel.toFixed(2)} L (eff 7.0 L/100km)<br>
+          Cost: ₱${fuelCost.toFixed(2)} (₱57.20/L)
+        `;
+
+        const list = path.instructions.map(inst => `
+          <tr><td>${inst.text}</td><td>${(inst.distance/1000).toFixed(2)} km</td></tr>
+        `).join('');
+        $('instruction-list').innerHTML = list;
+        $('status').innerText = 'Route generated successfully!';
+      }catch(e){
+        $('status').innerText = 'Error: ' + e.message;
+        console.error(e);
+      }
+    });
+  </script>
+</body>
+</html>
