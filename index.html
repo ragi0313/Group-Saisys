@@ -8,6 +8,20 @@
   <link rel="stylesheet" href="style.css">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <style>
+    /* Minimal helpers for new UI */
+    .marker-emoji{ font-size:20px; line-height:20px; }
+    .kpi-grid{ display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:12px; }
+    @media (max-width:900px){ .kpi-grid{ grid-template-columns:repeat(2,1fr); } }
+    .legend{ font-size:13px; opacity:.85; margin:6px 0 10px; display:flex; align-items:center; gap:10px; }
+    .swatch{ width:16px; height:4px; border-radius:2px; display:inline-block; vertical-align:middle; }
+    .swatch-route{ background:#00ff90; }
+
+    /* Instructions icons & highlight */
+    .inst-icon{ width:24px; text-align:center; }
+    .inst-row-dest{ background: rgba(0,255,144,0.12); font-weight:600; }
+    .inst-row-dest td{ border-top:2px solid #00ff90; border-bottom:2px solid #00ff90; }
+  </style>
 </head>
 <body>
 
@@ -66,7 +80,8 @@
 
   <!-- MAP + KPI RESULTS -->
   <div class="map-container">
-    <div id="map"></div>
+    <div id="map" style="height:420px;"></div>
+    <div class="legend"><span class="swatch swatch-route"></span> Suggested route</div>
 
     <!-- KPI CARDS -->
     <div class="kpi-grid">
@@ -99,7 +114,7 @@
         </div>
       </div>
 
-      <!-- KPI 3 (dynamic: Fuel / Steps / Calories) -->
+      <!-- KPI 3 (dynamic: Fuel / Steps / Calories / Energy) -->
       <div class="kpi-card">
         <div class="kpi-icon kpi-green">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -115,7 +130,7 @@
         </div>
       </div>
 
-      <!-- KPI 4 (dynamic: Cost / Calories / Avg Speed) -->
+      <!-- KPI 4 (dynamic: Cost / Calories / Avg Speed / Charge Cost) -->
       <div class="kpi-card">
         <div class="kpi-icon kpi-orange">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -133,13 +148,13 @@
 
     <!-- INSTRUCTIONS -->
     <div class="instructions" id="instructions">
-      <h2>Turn-by-Turn Instructions</h2>
+      <h2 id="inst-title">Turn-by-Turn Instructions</h2>
       <table>
         <thead>
-          <tr><th>Instruction</th><th>Distance</th></tr>
+          <tr><th class="inst-icon">↪</th><th>Instruction</th><th>Distance</th></tr>
         </thead>
         <tbody id="instruction-list">
-          <tr><td colspan="2">No data yet.</td></tr>
+          <tr><td colspan="3">No data yet.</td></tr>
         </tbody>
       </table>
     </div>
@@ -148,13 +163,28 @@
   <script>
     // ---------- CONFIGURABLE ASSUMPTIONS ----------
     const DEFAULT_KEY = "05ddb74c-90fe-4dad-9236-e37bb1fc2003";
-    const USER_WEIGHT_KG = 70;       // assumed user weight for calorie estimates
-    const STEPS_PER_KM = 1250;       // average steps per km
-    const MET_WALK = 3.3;            // walking ~3 mph
-    const MET_BIKE = 7.5;            // moderate cycling
-    // Fuel assumptions for motor vehicles:
-    const DEFAULT_EFF_L_PER_100KM = 7.0; // car fuel efficiency
-    const FUEL_PRICE = 57.20;            // ₱/L
+
+    // User/fitness assumptions
+    const USER_WEIGHT_KG = 70;        // for calorie estimates
+    const STEPS_PER_KM = 1250;        // avg steps per km
+    const MET_WALK = 3.3;             // walking ~3 mph
+    const MET_BIKE = 7.5;             // moderate cycling
+
+    // Fuel & power assumptions
+    const CAR_EFF_L_PER_100KM = 7.0;      // car efficiency
+    const MOTO_EFF_L_PER_100KM = 3.0;     // motorcycle efficiency
+    const FUEL_PRICE = 57.20;             // ₱/L (gasoline)
+    const EBIKE_WH_PER_KM = 12;           // typical e-bike consumption ~12 Wh/km
+    const ELEC_RATE_PHP_PER_KWH = 12.0;   // ₱ per kWh
+
+    // GraphHopper vehicle profile mapping
+    const VEHICLE_PROFILE = {
+      car: 'car',
+      motorcycle: 'car',   // fallback (GraphHopper may not have motorcycle profile)
+      bike: 'bike',
+      foot: 'foot',
+      ebike: 'bike'        // route like bike, but KPIs are electric
+    };
 
     // ---------- UI BOOT ----------
     window.addEventListener("load", () => {
@@ -162,7 +192,7 @@
       setTimeout(() => {
         loader.classList.add("fade-out");
         setTimeout(() => loader.style.display = "none", 800);
-      }, 1500);
+      }, 1200);
     });
 
     const modeToggle = document.getElementById("mode-toggle");
@@ -170,16 +200,29 @@
       document.body.classList.toggle("light-mode", modeToggle.checked)
     );
 
-    // ---------- MAP ----------
     const $ = id => document.getElementById(id);
+
+    // ---------- MAP ----------
     const map = L.map('map', {center:[13.759,121.058], zoom:12});
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {maxZoom:19}).addTo(map);
 
+    // Origin/Destination markers
+    const startIcon = L.divIcon({className:'marker-emoji', html:'📍', iconSize:[20,20], iconAnchor:[10,10]});
+    const greenFlagSVG = `
+      <svg width="22" height="22" viewBox="0 0 24 24">
+        <path d="M6 3v18" fill="none" stroke="#1f2937" stroke-width="2"/>
+        <path d="M7 4h9l-2 3 2 3H7z" fill="#00ff90" stroke="#00ff90" stroke-width="1"/>
+      </svg>`;
+    const endIcon = L.divIcon({className:'marker-emoji', html: greenFlagSVG, iconSize:[22,22], iconAnchor:[10,18]});
+    let startMarker = null, endMarker = null;
+
+    // Route polyline
     let routeLine = null;
+
     function drawRoute(coords){
       if(routeLine) map.removeLayer(routeLine);
-      routeLine = L.polyline(coords, {color:'#00ff90', weight:5}).addTo(map);
-      map.fitBounds(routeLine.getBounds());
+      routeLine = L.polyline(coords, {color:'#00ff90', weight:6}).addTo(map);
+      map.fitBounds(routeLine.getBounds(), {padding:[20,20]});
     }
 
     // ---------- HELPERS ----------
@@ -205,29 +248,125 @@
     const fmtPeso = n => `₱${n.toFixed(2)}`;
     const fmt1 = n => n.toFixed(1);
     const fmt2 = n => n.toFixed(2);
+    function fmt0(n){ return Math.round(n).toString(); }
 
     // Calories using MET formula: kcal = MET * 3.5 * weight(kg) / 200 * minutes
     function estimateCalories(MET, minutes, weightKg = USER_WEIGHT_KG){
       return MET * 3.5 * weightKg / 200 * minutes;
     }
 
-    // ---------- KPI SETTER ----------
-    function setKPI(labelsAndValues){
-      const { aLabel, aValue, aSub, bLabel, bValue, bSub } = labelsAndValues;
-      $('kpi-a-label').textContent = aLabel;
-      $('kpi-a').textContent = aValue;
-      $('kpi-a-sub').textContent = aSub;
+    // Map GraphHopper "sign" to an icon
+    function iconForInstruction(sign, text){
+      // Fallback by keywords if sign is undefined
+      const t = (text || '').toLowerCase();
+      const has = k => t.includes(k);
 
-      $('kpi-b-label').textContent = bLabel;
-      $('kpi-b').textContent = bValue;
-      $('kpi-b-sub').textContent = bSub;
+      // Rough mapping for common GraphHopper signs
+      // (values can vary by version; we also keyword-fallback)
+      if (sign === 4 || has('destination') || has('arrive')) return '🏁';
+      if (sign === 9 || has('roundabout')) return '⟳';
+      if (sign === 3 || has('sharp right')) return '↱';
+      if (sign === 2 || has('right')) return '➡️';
+      if (sign === 1 || has('slight right')) return '↗️';
+      if (sign === 5 || has('sharp left')) return '↰';
+      if (sign === 6 || has('left')) return '⬅️';
+      if (sign === 7 || has('slight left')) return '↖️';
+      if (has('u-turn') || has('uturn')) return '↩️';
+      if (has('continue') || has('straight')) return '⬆️';
+      return '•';
+    }
+
+    function setKPI({km, durMs, vehicle}){
+      const miles = kmToMiles(km);
+      const mins = Math.round(durMs/60000);
+      const hours = durMs / 3600000;
+      const avgSpeedKmh = hours > 0 ? km / hours : 0;
+
+      $('kpi-distance').textContent = `${fmt1(km)} km`;
+      $('kpi-distance-sub').textContent = `${fmt1(miles)} mi`;
+
+      $('kpi-duration').textContent = prettyTime(durMs);
+      $('kpi-duration-sub').textContent = `${mins} min`;
+
+      if (vehicle === 'foot') {
+        const steps = Math.round(km * STEPS_PER_KM);
+        const kcal = estimateCalories(MET_WALK, mins);
+        $('kpi-a-label').textContent = 'Steps';
+        $('kpi-a').textContent = steps.toLocaleString();
+        $('kpi-a-sub').textContent = `~${STEPS_PER_KM} steps/km`;
+
+        $('kpi-b-label').textContent = 'Calories';
+        $('kpi-b').textContent = `${fmt0(kcal)} kcal`;
+        $('kpi-b-sub').textContent = `MET ${MET_WALK}, ${USER_WEIGHT_KG} kg`;
+      }
+      else if (vehicle === 'bike') {
+        const kcal = estimateCalories(MET_BIKE, mins);
+        $('kpi-a-label').textContent = 'Calories';
+        $('kpi-a').textContent = `${fmt0(kcal)} kcal`;
+        $('kpi-a-sub').textContent = `MET ${MET_BIKE}, ${USER_WEIGHT_KG} kg`;
+
+        $('kpi-b-label').textContent = 'Avg Speed';
+        $('kpi-b').textContent = `${fmt1(avgSpeedKmh)} km/h`;
+        $('kpi-b-sub').textContent = `${fmt1(km)} km in ${mins} min`;
+      }
+      else if (vehicle === 'ebike') {
+        const wh = km * EBIKE_WH_PER_KM;
+        const kwh = wh / 1000;
+        const chargeCost = kwh * ELEC_RATE_PHP_PER_KWH;
+        $('kpi-a-label').textContent = 'Energy';
+        $('kpi-a').textContent = `${fmt2(wh)} Wh`;
+        $('kpi-a-sub').textContent = `${EBIKE_WH_PER_KM} Wh/km`;
+
+        $('kpi-b-label').textContent = 'Charge Cost';
+        $('kpi-b').textContent = fmtPeso(chargeCost);
+        $('kpi-b-sub').textContent = `@ ₱${ELEC_RATE_PHP_PER_KWH.toFixed(2)}/kWh`;
+      }
+      else if (vehicle === 'motorcycle') {
+        const fuelL = (km * MOTO_EFF_L_PER_100KM) / 100;
+        const fuelCost = fuelL * FUEL_PRICE;
+        $('kpi-a-label').textContent = 'Fuel';
+        $('kpi-a').textContent = `${fmt2(fuelL)} L`;
+        $('kpi-a-sub').textContent = `eff ${MOTO_EFF_L_PER_100KM.toFixed(1)} L/100km`;
+
+        $('kpi-b-label').textContent = 'Cost';
+        $('kpi-b').textContent = fmtPeso(fuelCost);
+        $('kpi-b-sub').textContent = `@ ${fmtPeso(FUEL_PRICE)}/L`;
+      }
+      else {
+        const fuelL = (km * CAR_EFF_L_PER_100KM) / 100;
+        const fuelCost = fuelL * FUEL_PRICE;
+        $('kpi-a-label').textContent = 'Fuel';
+        $('kpi-a').textContent = `${fmt2(fuelL)} L`;
+        $('kpi-a-sub').textContent = `eff ${CAR_EFF_L_PER_100KM.toFixed(1)} L/100km`;
+
+        $('kpi-b-label').textContent = 'Cost';
+        $('kpi-b').textContent = fmtPeso(fuelCost);
+        $('kpi-b-sub').textContent = `@ ${fmtPeso(FUEL_PRICE)}/L`;
+      }
+    }
+
+    function renderInstructions(path){
+      const rows = path.instructions.map(inst => {
+        const icon = iconForInstruction(inst.sign, inst.text);
+        const isDest = /destination|arrive|finish/i.test(inst.text || '');
+        const distKm = (inst.distance/1000).toFixed(2);
+        return `
+          <tr class="${isDest ? 'inst-row-dest' : ''}">
+            <td class="inst-icon">${icon}</td>
+            <td>${inst.text}</td>
+            <td>${distKm} km</td>
+          </tr>
+        `;
+      }).join('');
+      $('instruction-list').innerHTML = rows || '<tr><td colspan="3">No steps.</td></tr>';
+      $('inst-title').textContent = 'Turn-by-Turn Instructions';
     }
 
     // ---------- MAIN ----------
     $('generate').addEventListener('click', async ()=>{
       try{
         $('status').innerText = 'Working...';
-        $('instruction-list').innerHTML = '<tr><td colspan="2">Loading...</td></tr>';
+        $('instruction-list').innerHTML = '<tr><td colspan="3">Loading...</td></tr>';
 
         const from = $('origin').value.trim();
         const to = $('destination').value.trim();
@@ -241,93 +380,44 @@
         const g1 = await geocode(from);
         const g2 = await geocode(to);
 
-        const params = new URLSearchParams({
-          point: `${g1.lat},${g1.lng}`,
-          vehicle,
-          points_encoded: 'false',
-          instructions: 'true',
-          key: DEFAULT_KEY
-        });
-        params.append('point', `${g2.lat},${g2.lng}`);
+        // Update markers
+        if(startMarker) map.removeLayer(startMarker);
+        if(endMarker) map.removeLayer(endMarker);
+        startMarker = L.marker([g1.lat, g1.lng], {icon:startIcon}).addTo(map);
+        endMarker = L.marker([g2.lat, g2.lng], {icon:endIcon}).addTo(map);
 
-        const res = await fetch('https://graphhopper.com/api/1/route?' + params);
+        // Build the route request (single suggested route)
+        const ghVehicle = VEHICLE_PROFILE[vehicle] || 'car';
+        const u = new URL('https://graphhopper.com/api/1/route');
+        const p = u.searchParams;
+        p.set('point', `${g1.lat},${g1.lng}`);
+        p.append('point', `${g2.lat},${g2.lng}`);
+        p.set('vehicle', ghVehicle);
+        p.set('points_encoded','false');
+        p.set('instructions','true');
+        p.set('key', DEFAULT_KEY);
+
+        const res = await fetch(u.toString());
         const data = await res.json();
         if(!data.paths || !data.paths.length) throw new Error(data.message || 'No route found');
 
         const path = data.paths[0];
+
         const coords = path.points.coordinates.map(c=>[c[1],c[0]]);
         drawRoute(coords);
 
+        // KPIs & instructions
         const km = path.distance / 1000;
-        const miles = kmToMiles(km);
         const durMs = path.time;
-        const mins = Math.round(durMs/60000);
-        const hours = durMs / 3600000;
-        const avgSpeedKmh = hours > 0 ? km / hours : 0;
+        setKPI({ km, durMs, vehicle });
+        renderInstructions(path);
 
-        // Always set distance & duration
-        $('kpi-distance').textContent = `${fmt1(km)} km`;
-        $('kpi-distance-sub').textContent = `${fmt1(miles)} mi`;
-
-        $('kpi-duration').textContent = prettyTime(durMs);
-        $('kpi-duration-sub').textContent = `${mins} min`;
-
-        // Switch KPI 3 & 4 based on vehicle
-        if (vehicle === 'foot') {
-          // Walking → Steps & Calories
-          const steps = Math.round(km * STEPS_PER_KM);
-          const kcal = estimateCalories(MET_WALK, mins);
-
-          setKPI({
-            aLabel: 'Steps',
-            aValue: steps.toLocaleString(),
-            aSub: `~${STEPS_PER_KM} steps/km`,
-            bLabel: 'Calories',
-            bValue: `${fmt0(kcal)} kcal`,
-            bSub: `MET ${MET_WALK}, ${USER_WEIGHT_KG} kg`
-          });
-        } else if (vehicle === 'bike') {
-          // Biking → Calories & Avg Speed
-          const kcal = estimateCalories(MET_BIKE, mins);
-
-          setKPI({
-            aLabel: 'Calories',
-            aValue: `${fmt0(kcal)} kcal`,
-            aSub: `MET ${MET_BIKE}, ${USER_WEIGHT_KG} kg`,
-            bLabel: 'Avg Speed',
-            bValue: `${fmt1(avgSpeedKmh)} km/h`,
-            bSub: `${fmt1(km)} km in ${mins} min`
-          });
-        } else {
-          // Motorized (car/motorcycle/ebike) → Fuel & Cost
-          const eff = DEFAULT_EFF_L_PER_100KM;
-          const fuelL = (km * eff) / 100;
-          const fuelCost = fuelL * FUEL_PRICE;
-
-          setKPI({
-            aLabel: 'Fuel',
-            aValue: `${fmt2(fuelL)} L`,
-            aSub: `eff ${eff.toFixed(1)} L/100km`,
-            bLabel: 'Cost',
-            bValue: fmtPeso(fuelCost),
-            bSub: `@ ${fmtPeso(FUEL_PRICE)}/L`
-          });
-        }
-
-        // Instructions table
-        const list = path.instructions.map(inst => `
-          <tr><td>${inst.text}</td><td>${(inst.distance/1000).toFixed(2)} km</td></tr>
-        `).join('');
-        $('instruction-list').innerHTML = list;
         $('status').innerText = 'Route generated successfully!';
       }catch(e){
         $('status').innerText = 'Error: ' + e.message;
         console.error(e);
       }
     });
-
-    // tiny helpers used above
-    function fmt0(n){ return Math.round(n).toString(); }
   </script>
 </body>
 </html>
