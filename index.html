@@ -8,6 +8,7 @@
   <link rel="stylesheet" href="style.css">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
   <style>
     /* Minimal helpers for new UI */
     .marker-emoji{ font-size:20px; line-height:20px; }
@@ -21,6 +22,24 @@
     .inst-icon{ width:24px; text-align:center; }
     .inst-row-dest{ background: rgba(0,255,144,0.12); font-weight:600; }
     .inst-row-dest td{ border-top:2px solid #00ff90; border-bottom:2px solid #00ff90; }
+
+    /* ---------- Autocomplete styles ---------- */
+    .input-wrap{ position:relative; }
+    .ac-box{
+      position:absolute; left:0; right:0; top:100%; z-index:50;
+      background:#0b1220; color:#e8eefc; border:1px solid rgba(255,255,255,.1);
+      border-radius:10px; margin-top:6px; max-height:260px; overflow:auto;
+      box-shadow:0 10px 24px rgba(0,0,0,.35);
+    }
+    body.light-mode .ac-box{ background:#fff; color:#111; border-color:rgba(0,0,0,.12); }
+    .ac-item{
+      padding:10px 12px; cursor:pointer; display:grid; grid-template-columns: 1fr auto; gap:10px;
+    }
+    .ac-item:hover, .ac-item.active{ background:rgba(0,255,144,.12); }
+    .ac-title{ font-size:14px; line-height:1.2; }
+    .ac-sub{ font-size:12px; opacity:.75; }
+    .ac-badge{ font-size:12px; opacity:.7; white-space:nowrap; }
+    .ac-empty{ padding:10px 12px; font-size:13px; opacity:.7; }
   </style>
 </head>
 <body>
@@ -56,10 +75,16 @@
   <!-- MAIN PANEL -->
   <div class="panel">
     <label>Origin</label>
-    <input id="origin" type="text" placeholder="e.g., Batangas City Hall" />
+    <div class="input-wrap">
+      <input id="origin" type="text" placeholder="e.g., Batangas City Hall" autocomplete="off" />
+      <div class="ac-box" id="ac-origin" hidden></div>
+    </div>
 
     <label>Destination</label>
-    <input id="destination" type="text" placeholder="e.g., SM City Batangas" />
+    <div class="input-wrap">
+      <input id="destination" type="text" placeholder="e.g., SM City Batangas" autocomplete="off" />
+      <div class="ac-box" id="ac-destination" hidden></div>
+    </div>
 
     <div class="row">
       <div>
@@ -237,6 +262,16 @@
       return j.hits[0].point; // {lat, lng}
     }
 
+    async function geocodeSuggest(q, limit=6, controller){
+      const u = new URL('https://graphhopper.com/api/1/geocode');
+      u.searchParams.set('q', q);
+      u.searchParams.set('limit', limit);
+      u.searchParams.set('key', DEFAULT_KEY);
+      const r = await fetch(u, { signal: controller?.signal });
+      if(!r.ok) return { hits: [] };
+      return r.json();
+    }
+
     function prettyTime(ms){
       const s = Math.round(ms/1000);
       const h = Math.floor(s/3600);
@@ -260,9 +295,6 @@
       // Fallback by keywords if sign is undefined
       const t = (text || '').toLowerCase();
       const has = k => t.includes(k);
-
-      // Rough mapping for common GraphHopper signs
-      // (values can vary by version; we also keyword-fallback)
       if (sign === 4 || has('destination') || has('arrive')) return '🏁';
       if (sign === 9 || has('roundabout')) return '⟳';
       if (sign === 3 || has('sharp right')) return '↱';
@@ -361,6 +393,102 @@
       $('instruction-list').innerHTML = rows || '<tr><td colspan="3">No steps.</td></tr>';
       $('inst-title').textContent = 'Turn-by-Turn Instructions';
     }
+
+    // ---------- AUTOCOMPLETE ----------
+    function setupAutocomplete(inputId, boxId){
+      const input = $(inputId);
+      const box   = $(boxId);
+      let items = [];
+      let active = -1;
+      let lastQuery = '';
+      let aborter = null;
+      let hideTimer = null;
+
+      function hide(){ box.hidden = true; box.innerHTML=''; active=-1; }
+      function show(){ box.hidden = false; }
+      function setActive(idx){
+        const nodes = [...box.querySelectorAll('.ac-item')];
+        nodes.forEach((n,i)=> n.classList.toggle('active', i===idx));
+        active = idx;
+      }
+
+      function render(results){
+        items = results.hits || [];
+        if(!items.length){ box.innerHTML = `<div class="ac-empty">No matches</div>`; show(); return; }
+        box.innerHTML = items.map((h,i)=>{
+          const title = h.name || (h.street || '') + (h.housenumber ? ' ' + h.housenumber : '');
+          const sub   = [h.city, h.state, h.country].filter(Boolean).join(' • ');
+          const badge = h.osm_key || h.osm_value || h.point?.type || 'place';
+          return `
+            <div class="ac-item" data-idx="${i}">
+              <div>
+                <div class="ac-title">${title || 'Unnamed'}</div>
+                <div class="ac-sub">${sub}</div>
+              </div>
+              <div class="ac-badge">${badge}</div>
+            </div>`;
+        }).join('');
+        show();
+      }
+
+      function pick(i){
+        const h = items[i];
+        if(!h) return;
+        const title = h.name || [h.street, h.housenumber, h.city, h.state, h.country].filter(Boolean).join(', ');
+        input.value = title || '';
+        hide();
+      }
+
+      // Debounce input
+      let t=null;
+      input.addEventListener('input', ()=>{
+        const q = input.value.trim();
+        if(q===lastQuery){ return; }
+        lastQuery = q;
+        if(t) clearTimeout(t);
+        if(q.length < 2){ hide(); return; }
+        t = setTimeout(async ()=>{
+          try{
+            if(aborter) aborter.abort();
+            aborter = new AbortController();
+            const results = await geocodeSuggest(q, 6, aborter);
+            render(results);
+          }catch(e){ /* ignore aborts */ }
+        }, 250);
+      });
+
+      // Keyboard navigation
+      input.addEventListener('keydown', (ev)=>{
+        const visible = !box.hidden && items.length;
+        if(!visible) return;
+        if(ev.key === 'ArrowDown'){ ev.preventDefault(); setActive(Math.min(active+1, items.length-1)); }
+        else if(ev.key === 'ArrowUp'){ ev.preventDefault(); setActive(Math.max(active-1, 0)); }
+        else if(ev.key === 'Enter'){
+          if(active >= 0){ ev.preventDefault(); pick(active); }
+          hide();
+        } else if(ev.key === 'Escape'){ hide(); }
+      });
+
+      // Mouse interactions
+      box.addEventListener('mousedown', (e)=>{
+        const el = e.target.closest('.ac-item');
+        if(!el) return;
+        const idx = Number(el.dataset.idx);
+        pick(idx);
+      });
+
+      // Hide on blur (with small delay to allow click)
+      input.addEventListener('blur', ()=>{
+        hideTimer = setTimeout(hide, 150);
+      });
+      input.addEventListener('focus', ()=>{
+        if(hideTimer){ clearTimeout(hideTimer); hideTimer=null; }
+        if(items.length){ show(); }
+      });
+    }
+
+    setupAutocomplete('origin','ac-origin');
+    setupAutocomplete('destination','ac-destination');
 
     // ---------- MAIN ----------
     $('generate').addEventListener('click', async ()=>{
