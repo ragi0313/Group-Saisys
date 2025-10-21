@@ -658,3 +658,5 @@ body:not(.light-mode) .kpi-card { background: var(--card, #1e1e1e); }
 .kpi-label { font-size: 12px; color: var(--muted, #6b7280); }
 .kpi-value { font-weight: 800; font-size: 18px; line-height: 1.1; }
 .kpi-sub { font-size: 12px; color: var(--muted, #6b7280); }
+
+
