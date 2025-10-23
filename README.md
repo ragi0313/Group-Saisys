@@ -44,8 +44,8 @@ This project extends a previous CLI-based routing tool into a fully interactive 
 1. Clone this repository:
 
    ```bash
-   git clone <repository-url>
-   cd Group-Saisys
+   git clone git@github.com:ragi0313/Group-Saisys--RouteXplorer.git
+   cd Group-Saisys--ProjectXplorer
    ```
 
 2. Install dependencies (if using the Python helper tools):
