@@ -5,26 +5,29 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>SAISys RouteXplorer</title>
 
+  <!-- Base styles + Leaflet CSS/JS -->
   <link rel="stylesheet" href="style.css">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
   <style>
-    /* Minimal helpers for new UI */
+    /* ---------- Basic helpers & layout ---------- */
     .marker-emoji{ font-size:20px; line-height:20px; }
     .kpi-grid{ display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:12px; }
     @media (max-width:900px){ .kpi-grid{ grid-template-columns:repeat(2,1fr); } }
+
+    /* Route legend */
     .legend{ font-size:13px; opacity:.85; margin:6px 0 10px; display:flex; align-items:center; gap:10px; }
     .swatch{ width:16px; height:4px; border-radius:2px; display:inline-block; vertical-align:middle; }
     .swatch-route{ background:#00ff90; }
 
-    /* Instructions icons & highlight */
+    /* Turn-by-turn visuals */
     .inst-icon{ width:24px; text-align:center; }
     .inst-row-dest{ background: rgba(0,255,144,0.12); font-weight:600; }
     .inst-row-dest td{ border-top:2px solid #00ff90; border-bottom:2px solid #00ff90; }
 
-    /* ---------- Autocomplete styles ---------- */
-    .input-wrap{ position:relative; }
+    /* ---------- Autocomplete dropdown ---------- */
+    .input-wrap{ position:relative; } /* anchors dropdown to input */
     .ac-box{
       position:absolute; left:0; right:0; top:100%; z-index:50;
       background:#0b1220; color:#e8eefc; border:1px solid rgba(255,255,255,.1);
@@ -42,9 +45,10 @@
     .ac-empty{ padding:10px 12px; font-size:13px; opacity:.7; }
   </style>
 </head>
+
 <body>
 
-  <!-- LOADING SCREEN -->
+  <!-- ---------- Loading screen (fade-out on load) ---------- -->
   <div id="loading-screen">
     <div class="loader-content">
       <h1 class="loader-title">SAISys RouteXplorer</h1>
@@ -53,13 +57,14 @@
     </div>
   </div>
 
-  <!-- NAVIGATION BAR -->
+  <!-- ---------- Top bar: app title + theme toggle ---------- -->
   <nav class="navbar">
     <div class="nav-left">
       <h1>SAISys RouteXplorer</h1>
       <p>Your path, redefined.</p>
     </div>
 
+    <!-- Light/Dark switch -->
     <div class="theme-toggle">
       <input type="checkbox" id="mode-toggle">
       <label for="mode-toggle" class="toggle-label">
@@ -72,12 +77,12 @@
     </div>
   </nav>
 
-  <!-- MAIN PANEL -->
+  <!-- ---------- Input panel: origin, destination, vehicle ---------- -->
   <div class="panel">
     <label>Origin</label>
     <div class="input-wrap">
       <input id="origin" type="text" placeholder="e.g., Batangas City Hall" autocomplete="off" />
-      <div class="ac-box" id="ac-origin" hidden></div>
+      <div class="ac-box" id="ac-origin" hidden></div> <!-- suggestions panel -->
     </div>
 
     <label>Destination</label>
@@ -86,6 +91,7 @@
       <div class="ac-box" id="ac-destination" hidden></div>
     </div>
 
+    <!-- Vehicle select -->
     <div class="row">
       <div>
         <label>Vehicle</label>
@@ -99,17 +105,19 @@
       </div>
     </div>
 
+    <!-- Action button + status -->
     <button id="generate" class="btn">Generate Report</button>
     <p id="status" class="status">Ready</p>
   </div>
 
-  <!-- MAP + KPI RESULTS -->
+  <!-- ---------- Map + KPIs + Instructions ---------- -->
   <div class="map-container">
     <div id="map" style="height:420px;"></div>
     <div class="legend"><span class="swatch swatch-route"></span> Suggested route</div>
 
-    <!-- KPI CARDS -->
+    <!-- KPI cards -->
     <div class="kpi-grid">
+      <!-- Distance -->
       <div class="kpi-card">
         <div class="kpi-icon kpi-blue">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -125,6 +133,7 @@
         </div>
       </div>
 
+      <!-- Duration -->
       <div class="kpi-card">
         <div class="kpi-icon kpi-purple">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -139,7 +148,7 @@
         </div>
       </div>
 
-      <!-- KPI 3 (dynamic: Fuel / Steps / Calories / Energy) -->
+      <!-- KPI 3: dynamic (Fuel/Steps/Calories/Energy) -->
       <div class="kpi-card">
         <div class="kpi-icon kpi-green">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -155,7 +164,7 @@
         </div>
       </div>
 
-      <!-- KPI 4 (dynamic: Cost / Calories / Avg Speed / Charge Cost) -->
+      <!-- KPI 4: dynamic (Cost/Calories/Avg Speed/Charge Cost) -->
       <div class="kpi-card">
         <div class="kpi-icon kpi-orange">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -171,7 +180,7 @@
       </div>
     </div>
 
-    <!-- INSTRUCTIONS -->
+    <!-- Turn-by-turn table -->
     <div class="instructions" id="instructions">
       <h2 id="inst-title">Turn-by-Turn Instructions</h2>
       <table>
@@ -186,32 +195,32 @@
   </div>
 
   <script>
-    // ---------- CONFIGURABLE ASSUMPTIONS ----------
+    /* ---------- Constants: API key & KPI assumptions ---------- */
     const DEFAULT_KEY = "05ddb74c-90fe-4dad-9236-e37bb1fc2003";
 
-    // User/fitness assumptions
-    const USER_WEIGHT_KG = 70;        // for calorie estimates
-    const STEPS_PER_KM = 1250;        // avg steps per km
-    const MET_WALK = 3.3;             // walking ~3 mph
-    const MET_BIKE = 7.5;             // moderate cycling
+    // Fitness/energy assumptions
+    const USER_WEIGHT_KG = 70;
+    const STEPS_PER_KM = 1250;
+    const MET_WALK = 3.3;
+    const MET_BIKE = 7.5;
 
-    // Fuel & power assumptions
-    const CAR_EFF_L_PER_100KM = 7.0;      // car efficiency
-    const MOTO_EFF_L_PER_100KM = 3.0;     // motorcycle efficiency
-    const FUEL_PRICE = 57.20;             // ₱/L (gasoline)
-    const EBIKE_WH_PER_KM = 12;           // typical e-bike consumption ~12 Wh/km
-    const ELEC_RATE_PHP_PER_KWH = 12.0;   // ₱ per kWh
+    // Fuel/power costs
+    const CAR_EFF_L_PER_100KM = 7.0;
+    const MOTO_EFF_L_PER_100KM = 3.0;
+    const FUEL_PRICE = 57.20;
+    const EBIKE_WH_PER_KM = 12;
+    const ELEC_RATE_PHP_PER_KWH = 12.0;
 
-    // GraphHopper vehicle profile mapping
+    // GraphHopper vehicle mapping
     const VEHICLE_PROFILE = {
       car: 'car',
-      motorcycle: 'car',   // fallback (GraphHopper may not have motorcycle profile)
+      motorcycle: 'car',   // GH fallback
       bike: 'bike',
       foot: 'foot',
-      ebike: 'bike'        // route like bike, but KPIs are electric
+      ebike: 'bike'        // route like bike; KPIs use electric
     };
 
-    // ---------- UI BOOT ----------
+    /* ---------- App boot: fade out loader & theme toggle ---------- */
     window.addEventListener("load", () => {
       const loader = document.getElementById("loading-screen");
       setTimeout(() => {
@@ -220,18 +229,20 @@
       }, 1200);
     });
 
+    // Theme toggle (CSS uses .light-mode)
     const modeToggle = document.getElementById("mode-toggle");
     modeToggle.addEventListener("change", () =>
       document.body.classList.toggle("light-mode", modeToggle.checked)
     );
 
+    // Mini helper
     const $ = id => document.getElementById(id);
 
-    // ---------- MAP ----------
+    /* ---------- Map: Leaflet init + OSM tiles ---------- */
     const map = L.map('map', {center:[13.759,121.058], zoom:12});
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {maxZoom:19}).addTo(map);
 
-    // Origin/Destination markers
+    // Marker icons
     const startIcon = L.divIcon({className:'marker-emoji', html:'📍', iconSize:[20,20], iconAnchor:[10,10]});
     const greenFlagSVG = `
       <svg width="22" height="22" viewBox="0 0 24 24">
@@ -241,16 +252,16 @@
     const endIcon = L.divIcon({className:'marker-emoji', html: greenFlagSVG, iconSize:[22,22], iconAnchor:[10,18]});
     let startMarker = null, endMarker = null;
 
-    // Route polyline
+    // Draw route polyline and fit bounds
     let routeLine = null;
-
     function drawRoute(coords){
       if(routeLine) map.removeLayer(routeLine);
       routeLine = L.polyline(coords, {color:'#00ff90', weight:6}).addTo(map);
       map.fitBounds(routeLine.getBounds(), {padding:[20,20]});
     }
 
-    // ---------- HELPERS ----------
+    /* ---------- Helpers: geocoding, formatting, icons ---------- */
+    // Single best geocode → {lat,lng}
     async function geocode(q){
       const u = new URL('https://graphhopper.com/api/1/geocode');
       u.searchParams.set('q', q);
@@ -259,9 +270,10 @@
       const r = await fetch(u);
       const j = await r.json();
       if(!j.hits.length) throw new Error('No result for ' + q);
-      return j.hits[0].point; // {lat, lng}
+      return j.hits[0].point; // {lat,lng}
     }
 
+    // Multi-hit geocode for suggestions
     async function geocodeSuggest(q, limit=6, controller){
       const u = new URL('https://graphhopper.com/api/1/geocode');
       u.searchParams.set('q', q);
@@ -272,6 +284,7 @@
       return r.json();
     }
 
+    // Formatters
     function prettyTime(ms){
       const s = Math.round(ms/1000);
       const h = Math.floor(s/3600);
@@ -285,14 +298,13 @@
     const fmt2 = n => n.toFixed(2);
     function fmt0(n){ return Math.round(n).toString(); }
 
-    // Calories using MET formula: kcal = MET * 3.5 * weight(kg) / 200 * minutes
+    // Quick MET-based calories
     function estimateCalories(MET, minutes, weightKg = USER_WEIGHT_KG){
       return MET * 3.5 * weightKg / 200 * minutes;
     }
 
-    // Map GraphHopper "sign" to an icon
+    // Map GH "sign" → emoji direction
     function iconForInstruction(sign, text){
-      // Fallback by keywords if sign is undefined
       const t = (text || '').toLowerCase();
       const has = k => t.includes(k);
       if (sign === 4 || has('destination') || has('arrive')) return '🏁';
@@ -308,6 +320,7 @@
       return '•';
     }
 
+    /* ---------- KPIs: compute & render based on vehicle ---------- */
     function setKPI({km, durMs, vehicle}){
       const miles = kmToMiles(km);
       const mins = Math.round(durMs/60000);
@@ -316,67 +329,67 @@
 
       $('kpi-distance').textContent = `${fmt1(km)} km`;
       $('kpi-distance-sub').textContent = `${fmt1(miles)} mi`;
-
       $('kpi-duration').textContent = prettyTime(durMs);
       $('kpi-duration-sub').textContent = `${mins} min`;
 
       if (vehicle === 'foot') {
+        // Walking: steps + calories
         const steps = Math.round(km * STEPS_PER_KM);
         const kcal = estimateCalories(MET_WALK, mins);
         $('kpi-a-label').textContent = 'Steps';
         $('kpi-a').textContent = steps.toLocaleString();
         $('kpi-a-sub').textContent = `~${STEPS_PER_KM} steps/km`;
-
         $('kpi-b-label').textContent = 'Calories';
         $('kpi-b').textContent = `${fmt0(kcal)} kcal`;
         $('kpi-b-sub').textContent = `MET ${MET_WALK}, ${USER_WEIGHT_KG} kg`;
       }
       else if (vehicle === 'bike') {
+        // Biking: calories + avg speed
         const kcal = estimateCalories(MET_BIKE, mins);
         $('kpi-a-label').textContent = 'Calories';
         $('kpi-a').textContent = `${fmt0(kcal)} kcal`;
         $('kpi-a-sub').textContent = `MET ${MET_BIKE}, ${USER_WEIGHT_KG} kg`;
-
         $('kpi-b-label').textContent = 'Avg Speed';
         $('kpi-b').textContent = `${fmt1(avgSpeedKmh)} km/h`;
         $('kpi-b-sub').textContent = `${fmt1(km)} km in ${mins} min`;
       }
       else if (vehicle === 'ebike') {
+        // E-bike: energy + charge cost
         const wh = km * EBIKE_WH_PER_KM;
         const kwh = wh / 1000;
         const chargeCost = kwh * ELEC_RATE_PHP_PER_KWH;
         $('kpi-a-label').textContent = 'Energy';
         $('kpi-a').textContent = `${fmt2(wh)} Wh`;
         $('kpi-a-sub').textContent = `${EBIKE_WH_PER_KM} Wh/km`;
-
         $('kpi-b-label').textContent = 'Charge Cost';
         $('kpi-b').textContent = fmtPeso(chargeCost);
         $('kpi-b-sub').textContent = `@ ₱${ELEC_RATE_PHP_PER_KWH.toFixed(2)}/kWh`;
       }
       else if (vehicle === 'motorcycle') {
+        // Motorcycle: fuel + cost
         const fuelL = (km * MOTO_EFF_L_PER_100KM) / 100;
         const fuelCost = fuelL * FUEL_PRICE;
         $('kpi-a-label').textContent = 'Fuel';
         $('kpi-a').textContent = `${fmt2(fuelL)} L`;
         $('kpi-a-sub').textContent = `eff ${MOTO_EFF_L_PER_100KM.toFixed(1)} L/100km`;
-
         $('kpi-b-label').textContent = 'Cost';
         $('kpi-b').textContent = fmtPeso(fuelCost);
         $('kpi-b-sub').textContent = `@ ${fmtPeso(FUEL_PRICE)}/L`;
       }
       else {
+        // Car: fuel + cost
         const fuelL = (km * CAR_EFF_L_PER_100KM) / 100;
         const fuelCost = fuelL * FUEL_PRICE;
         $('kpi-a-label').textContent = 'Fuel';
         $('kpi-a').textContent = `${fmt2(fuelL)} L`;
         $('kpi-a-sub').textContent = `eff ${CAR_EFF_L_PER_100KM.toFixed(1)} L/100km`;
-
         $('kpi-b-label').textContent = 'Cost';
         $('kpi-b').textContent = fmtPeso(fuelCost);
         $('kpi-b-sub').textContent = `@ ${fmtPeso(FUEL_PRICE)}/L`;
       }
     }
 
+    /* ---------- Render turn-by-turn instructions ---------- */
     function renderInstructions(path){
       const rows = path.instructions.map(inst => {
         const icon = iconForInstruction(inst.sign, inst.text);
@@ -394,7 +407,7 @@
       $('inst-title').textContent = 'Turn-by-Turn Instructions';
     }
 
-    // ---------- AUTOCOMPLETE ----------
+    /* ---------- Autocomplete: setup for an input + dropdown ---------- */
     function setupAutocomplete(inputId, boxId){
       const input = $(inputId);
       const box   = $(boxId);
@@ -404,14 +417,18 @@
       let aborter = null;
       let hideTimer = null;
 
+      // Dropdown visibility helpers
       function hide(){ box.hidden = true; box.innerHTML=''; active=-1; }
       function show(){ box.hidden = false; }
+
+      // Set highlighted item
       function setActive(idx){
         const nodes = [...box.querySelectorAll('.ac-item')];
         nodes.forEach((n,i)=> n.classList.toggle('active', i===idx));
         active = idx;
       }
 
+      // Render suggestions list
       function render(results){
         items = results.hits || [];
         if(!items.length){ box.innerHTML = `<div class="ac-empty">No matches</div>`; show(); return; }
@@ -431,6 +448,7 @@
         show();
       }
 
+      // Choose an item → fill input
       function pick(i){
         const h = items[i];
         if(!h) return;
@@ -439,7 +457,7 @@
         hide();
       }
 
-      // Debounce input
+      // Debounced input handler + abort stale requests
       let t=null;
       input.addEventListener('input', ()=>{
         const q = input.value.trim();
@@ -457,7 +475,7 @@
         }, 250);
       });
 
-      // Keyboard navigation
+      // Keyboard navigation (↓/↑/Enter/Esc)
       input.addEventListener('keydown', (ev)=>{
         const visible = !box.hidden && items.length;
         if(!visible) return;
@@ -469,7 +487,7 @@
         } else if(ev.key === 'Escape'){ hide(); }
       });
 
-      // Mouse interactions
+      // Mouse select
       box.addEventListener('mousedown', (e)=>{
         const el = e.target.closest('.ac-item');
         if(!el) return;
@@ -477,20 +495,16 @@
         pick(idx);
       });
 
-      // Hide on blur (with small delay to allow click)
-      input.addEventListener('blur', ()=>{
-        hideTimer = setTimeout(hide, 150);
-      });
-      input.addEventListener('focus', ()=>{
-        if(hideTimer){ clearTimeout(hideTimer); hideTimer=null; }
-        if(items.length){ show(); }
-      });
+      // Blur/focus timing so clicks still register
+      input.addEventListener('blur', ()=>{ hideTimer = setTimeout(hide, 150); });
+      input.addEventListener('focus', ()=>{ if(hideTimer){ clearTimeout(hideTimer); hideTimer=null; } if(items.length){ show(); } });
     }
 
+    // Enable autocomplete for both fields
     setupAutocomplete('origin','ac-origin');
     setupAutocomplete('destination','ac-destination');
 
-    // ---------- MAIN ----------
+    /* ---------- Main: click Generate → geocode, route, KPIs, steps ---------- */
     $('generate').addEventListener('click', async ()=>{
       try{
         $('status').innerText = 'Working...';
@@ -505,6 +519,7 @@
           return;
         }
 
+        // Geocode inputs
         const g1 = await geocode(from);
         const g2 = await geocode(to);
 
@@ -514,7 +529,7 @@
         startMarker = L.marker([g1.lat, g1.lng], {icon:startIcon}).addTo(map);
         endMarker = L.marker([g2.lat, g2.lng], {icon:endIcon}).addTo(map);
 
-        // Build the route request (single suggested route)
+        // Build GraphHopper route request
         const ghVehicle = VEHICLE_PROFILE[vehicle] || 'car';
         const u = new URL('https://graphhopper.com/api/1/route');
         const p = u.searchParams;
@@ -525,16 +540,18 @@
         p.set('instructions','true');
         p.set('key', DEFAULT_KEY);
 
+        // Fetch route
         const res = await fetch(u.toString());
         const data = await res.json();
         if(!data.paths || !data.paths.length) throw new Error(data.message || 'No route found');
 
         const path = data.paths[0];
 
+        // Draw polyline
         const coords = path.points.coordinates.map(c=>[c[1],c[0]]);
         drawRoute(coords);
 
-        // KPIs & instructions
+        // KPIs + instructions
         const km = path.distance / 1000;
         const durMs = path.time;
         setKPI({ km, durMs, vehicle });
@@ -542,7 +559,7 @@
 
         $('status').innerText = 'Route generated successfully!';
       }catch(e){
-        $('status').innerText = 'Error: ' + e.message;
+        $('status').innerText = 'Error: ' + (e.message || e);
         console.error(e);
       }
     });
