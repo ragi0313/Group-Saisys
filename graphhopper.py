@@ -1,3 +1,21 @@
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+#From Team DevOps
+
+#HEART GOLLOSO
+#The program demonstrates excellent integration of the Graphhopper API with a user-friendly Tkinter interface, effectively combining routing, geocoding, 
+#and map visualization. Features such as dark mode, multithreaded report generation, and turn-by-turn directions reflect strong technical skills and 
+#attention to user experience. The system’s clean layout and responsiveness make it both functional and engaging for users.
+#RECOMMENDATIONS 
+#To further improve the system, it is recommended to modularize the code for easier maintenance and apply advanced error handling and 
+#caching for reliability. Securing the API key using environment variables and allowing PDF report exports or dropdown vehicle selection would 
+#enhance usability and security. Adding real-time traffic updates or CO₂ emission estimation could also make the system more dynamic and 
+#sustainable in future versions.
+
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+
+
+
 #!/usr/bin/env python3
 # graphhopper_visual_report_only.py
 # Enhanced GUI for Graphhopper routing → report.html
