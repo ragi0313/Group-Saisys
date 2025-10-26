@@ -11,6 +11,20 @@
 #enhance usability and security. Adding real-time traffic updates or CO₂ emission estimation could also make the system more dynamic and 
 #sustainable in future versions.
 
+#KING WHESTLIE YEMA
+#This report-focused Tkinter tool feels thoughtfully engineered: the threaded workflow keeps the UI responsive, the loading
+#modal communicates progress, and the HTML report balances clarity (KPIs, turn icons, theme toggle) with polish (SVG pins,
+#mode-aware colors). Philippine defaults and energy/calorie estimates add practical, local relevance. The tile fallback and
+#defensive parsing help the experience remain stable even on flaky networks.
+#RECOMMENDATIONS
+#Add debounced autocomplete for Origin/Destination (show top geocoder hits) to reduce typos and speed up entry.
+#Include an in-app “Preview report” pane or quick-open button with a success/failure toast after file write completes.
+#Provide a print-optimized stylesheet and a one-click “Download PDF” (window.print()) layout for the HTML report.
+#Expose a small “What-if” panel in the report to adjust fuel price/efficiency live and recalc cost without re-running the app.
+#Persist user preferences (last O/D, vehicle, theme, default prices) in a settings JSON and restore on launch.
+#Harden network calls with per-request timeouts, limited retries with jitter, and a circuit-breaker after repeated failures.
+#Add automated checks: validate that build_report_html outputs a complete document and that dark-mode toggle updates map/polyline.
+#Package a distributable build (PyInstaller single-file), ensuring all SVG/JS assets are inlined so reports still render when shared.
 #++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 # +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
