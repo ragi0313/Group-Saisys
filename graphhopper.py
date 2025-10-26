@@ -25,6 +25,17 @@
 #Harden network calls with per-request timeouts, limited retries with jitter, and a circuit-breaker after repeated failures.
 #Add automated checks: validate that build_report_html outputs a complete document and that dark-mode toggle updates map/polyline.
 #Package a distributable build (PyInstaller single-file), ensuring all SVG/JS assets are inlined so reports still render when shared.
+
+#JOSHUA MALOLOY-ON
+#This project is really well-made and shows a strong understanding of both Python and API integration. The program runs smoothly and 
+#automatically generates a clean, interactive HTML report that includes route maps, travel details, and even fuel or calorie estimates
+#depending on the vehicle type. I like how it uses a loading window and threading so the interface doesn’t freeze, and the dark and 
+#light mode options in the report make it look more professional. The code is long but well-organized, with clear functions that separate 
+#each process nicely. Overall, it’s an impressive and functional project that feels modern and complete.
+#RECOMMENDATIONS
+#To improve the program even more, it might help to add a feature that remembers recent searches or lets users customize the default
+#settings like fuel efficiency or theme. Adding an offline fallback map option or caching API results could also make it more reliable
+#when there’s slow internet. Lastly, simplifying the UI a bit or grouping related options in tabs might make it easier to use for new users.
 #++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 # +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
