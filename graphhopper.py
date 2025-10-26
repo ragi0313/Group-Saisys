@@ -50,6 +50,12 @@
 # Usage: python3 graphhopper_visual_report_only.py
 # Requires: requests, tkinter (standard lib), webbrowser, threading
 
+
+# ROMASANTA-D.E.V.S
+# The program stands out for its stability, clean interface, and effective use of Graphhopper API features. 
+# It provides clear, informative route insights in an accessible format.
+# I recommend to add preference saving (theme, last locations) and a quick “Download PDF” or “Open Report” action for smoother workflow.
+
 import os
 import json
 import webbrowser
