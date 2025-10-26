@@ -21,6 +21,11 @@
 # A “Recent Reports” or “History” dropdown could let users quickly re-open previous routes for review or comparison.
 # Add route options toggles (e.g., “Avoid tolls/ferries/highways”) so users can tailor paths without changing origin/destination.
 # Provide a one-click “Share route” button that copies a prefilled link (origin, destination, vehicle, theme) to quickly reopen the same report.
+
+# COMMENTS from Team Devnet & Chill - Zac
+# The output is a user-friendly window where users can view their route details and an interactive map
+# showing the path between locations. Additionally, it generates a well-formatted HTML report that visually
+# presents the route on a map with clear directions and summary data.
 # +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 
