@@ -19,6 +19,8 @@
 # it would be helpful if the system could remember the last searched origin, destination, and chosen vehicle type. 
 # Saving these preferences locally or in a small settings file (e.g., JSON) would reduce repetitive inputs. 
 # A “Recent Reports” or “History” dropdown could let users quickly re-open previous routes for review or comparison.
+# Add route options toggles (e.g., “Avoid tolls/ferries/highways”) so users can tailor paths without changing origin/destination.
+# Provide a one-click “Share route” button that copies a prefilled link (origin, destination, vehicle, theme) to quickly reopen the same report.
 # +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 
