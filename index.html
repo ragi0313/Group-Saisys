@@ -570,6 +570,10 @@ Search your Group Name
     //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     // FEATURE: Main Controller
     // - Wire up "Generate Report": geocode, get route, draw map, compute KPIs, list steps
+    // Vincent Mabilangan - Implement error handling and user feedback for invalid or ambiguous locations during geocoding.
+    // For example, if the geocode API returns multiple possible matches or none at all, display a clear message prompting
+    // the user to refine their input or select the correct location from a list. This will make the "Generate Report" feature
+    // more user-friendly and prevent failed route generations due to unclear addresses.
     //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
     /* ---------- Main: click Generate → geocode, route, KPIs, steps ---------- */
