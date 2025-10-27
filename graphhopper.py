@@ -27,6 +27,17 @@
 #Package a distributable build (PyInstaller single-file), ensuring all SVG/JS assets are inlined so reports still render when shared.
 #++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+# DEVS - GEOTRAVEL from Zaki
+# Provides a full-featured GUI for interactive route generation and travel visualization.
+# Integrates GraphHopper API for geocoding and routing between user-defined locations.
+# Calculates total distance, duration, elevation, and fuel cost estimates.
+# Displays routes, directions, and travel data using a modern Tkinter interface.
+# Generates customizable HTML reports with embedded maps and step-by-step instructions.
+# Supports multiple transport modes, unit conversions, and light/dark map themes.
+# Designed for extensibility, modular development, and collaborative maintenance.
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 # +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 # COMMENTS from Team Devnet & Chill - Via
 # The app’s design is simple yet practical, making it easy to use even for beginners. To make it more user-centered, 
