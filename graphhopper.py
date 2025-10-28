@@ -11,6 +11,20 @@
 #enhance usability and security. Adding real-time traffic updates or CO₂ emission estimation could also make the system more dynamic and 
 #sustainable in future versions.
 
+"""
+CARL LAWRENCE CHUA
+Clean modular logic for geocoding, routing, and UI.
+Effective use of threading to keep the interface responsive.
+Well-designed and user-friendly HTML report with light/dark mode.
+Accurate travel, fuel, and energy calculations.
+
+Split into multiple modules for better maintainability.
+Add try-except-finally to guarantee modal closure during errors.
+Use None instead of strings like "null" for failed coordinates.
+Implement retry logic for API calls and add CO₂ emission estimates.
+Escape user input in HTML to prevent potential injection.
+"""
+
 #KING WHESTLIE YEMA
 #This report-focused Tkinter tool feels thoughtfully engineered: the threaded workflow keeps the UI responsive, the loading
 #modal communicates progress, and the HTML report balances clarity (KPIs, turn icons, theme toggle) with polish (SVG pins,
